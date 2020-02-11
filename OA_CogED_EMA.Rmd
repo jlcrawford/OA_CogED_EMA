@@ -1,0 +1,106 @@
+---
+title: "OA CogED EMA"
+author: "JC"
+date: "2/10/2020"
+output:
+  html_document: default
+  code_folding: "hide"
+---
+#Costs of Cognitive Effort Project
+
+```{r setup, warning=FALSE, message=FALSE}
+rm(list=ls())
+
+# Packages
+library(WRS2); library(ez); library(lme4); library(knitr); library(kableExtra); library(RColorBrewer); library(tidyverse);
+source("summarySEwithin2.R")
+
+#Create data directories
+coged.path<-"~/Box Sync/CCPLab_Aging_Studies/OA_Effort_EMA/Data/Cog-ED/subject_data.csv"
+NASA.path <- "~/Box Sync/CCPLab_Aging_Studies/OA_Effort_EMA/Data/Self-Report/NASA.csv"
+
+#Make data frames for Cog-ED and NASA TLX 
+coged<- read.csv(coged.path, header = T)
+NASA <- read.csv(NASA.path, header = T)
+```
+
+```{r SV_CogED, warning=F, message=F}
+#clean data frame with Cog-ED SV estimates and join data across both domains (i.e., WM, speech)
+d.coged <- coged %>%
+  group_by(subID, task) %>%
+  dplyr::summarise(meanSV = mean(SV)) %>%
+  mutate(task = factor(task, levels=c(1,2,3), labels=c("Red","Blue","Purple")),
+        taskCode = factor(task, levels=c(1,2,3), labels=c(-1,0,1)))            
+```
+
+##Cognitive Effort Discounting
+###Working Memory (Black = 1-back, Red = 2-Back, Blue = 3-back, Purple = 4-back)
+
+``` {r CogED_Plot, warning = F, message = F}
+CogED_sum <- summarySEwithin2(d.coged, measurevar = "meanSV", withinvars = c("task"), idvar = "subID")
+
+#Plotting SV across both WM and speech domains
+p.1 <- ggplot(CogED_sum, aes(x=task, y=meanSV)) + 
+  theme(plot.title = element_text(hjust = 0.5), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+  geom_bar(stat="identity", position=position_dodge()) +
+  geom_errorbar(position=position_dodge(width=0.9), aes(ymin=meanSV-ci, ymax=meanSV+ci), width=.2) +  
+  coord_cartesian(ylim=c(0,1)) +
+  xlab("Task") + ylab("Subjective Value") + ggtitle("Cognitive Effort Discounting")
+p.1
+```
+
+##Self-Report Questionnaires 
+
+``` {r Self-Report, warning = F, message = F}
+#cleaning up data structures from REDCap
+NASA.clean <- NASA %>% select( -"nasawm_complete") %>%
+  pivot_longer(names_to = "condition", values_to = "rating", -record_id) %>%
+  separate(col = condition, into=c("Task","Characteristic"), sep = "_") %>%
+  pivot_wider(values_from = rating, names_from = Characteristic) %>%
+  rename(mental_demand = mdemand, 
+         phsyical_demand = pdemand, 
+         temporal_demand = tdemand) 
+
+#Mental Demand Ratings
+NASA.m.demand <- NASA.clean %>% select(record_id, Task, mental_demand) %>%
+  group_by(record_id, Task) %>%
+  dplyr::summarise(mean.m.demand = mean(mental_demand))
+NASA_mdemand_sum <- summarySEwithin2(NASA.m.demand, measurevar = "mean.m.demand", withinvars = c("Task"), idvar = "record_id")
+NASA_mdemand_sum$Task <- factor(NASA_mdemand_sum$Task, levels = c("black", "red", "blue", "purple"), labels = c("black", "red", "blue", "purple"))
+
+p.m.demand <- ggplot(NASA_mdemand_sum, aes(x=Task, y=mean.m.demand)) + 
+  theme(plot.title = element_text(hjust = 0.5), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+  geom_bar(stat="identity", position=position_dodge()) +
+  geom_errorbar(position=position_dodge(width=0.9), aes(ymin=mean.m.demand-ci, ymax=mean.m.demand+ci), width=.2) +  
+  xlab("Task") + ylab("Mental Demand") + ggtitle("Self-Reported Mental Demand") 
+p.m.demand
+
+#Effort Ratings
+NASA.effort <- NASA.clean %>% select(record_id, Task, effort) %>%
+  group_by(record_id, Task) %>%
+  dplyr::summarise(mean.effort = mean(effort))
+NASA_effort_sum <- summarySEwithin2(NASA.effort, measurevar = "mean.effort", withinvars = c("Task"), idvar = "record_id")
+NASA_effort_sum$Task <- factor(NASA_effort_sum$Task, levels = c("black", "red", "blue", "purple"), labels = c("black", "red", "blue", "purple"))
+
+p.effort <- ggplot(NASA_effort_sum, aes(x=Task, y=mean.effort)) + 
+  theme(plot.title = element_text(hjust = 0.5), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+  geom_bar(stat="identity", position=position_dodge()) +
+  geom_errorbar(position=position_dodge(width=0.9), aes(ymin=mean.effort-ci, ymax=mean.effort+ci), width=.2) +  
+  xlab("Task") + ylab("Effort") + ggtitle("Self-Reported Effort") 
+p.effort
+
+#Frustration Ratings
+NASA.frust <- NASA.clean %>% select(record_id, Task, frustration) %>%
+  group_by(record_id, Task) %>%
+  dplyr::summarise(mean.frust = mean(frustration))
+NASA_frust_sum <- summarySEwithin2(NASA.frust, measurevar = "mean.frust", withinvars = c("Task"), idvar = "record_id")
+NASA_frust_sum$Task <- factor(NASA_frust_sum$Task, levels = c("black", "red", "blue", "purple"), labels = c("black", "red", "blue", "purple"))
+
+p.frust <- ggplot(NASA_frust_sum, aes(x=Task, y=mean.frust)) + 
+  theme(plot.title = element_text(hjust = 0.5), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+  geom_bar(stat="identity", position=position_dodge()) +
+  geom_errorbar(position=position_dodge(width=0.9), aes(ymin=mean.frust-ci, ymax=mean.frust+ci), width=.2) +  
+  xlab("Task") + ylab("Frustration") + ggtitle("Self-Reported Frustration")
+p.frust
+```
+
