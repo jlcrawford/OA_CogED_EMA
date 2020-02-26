@@ -45,11 +45,14 @@ p.1 <- ggplot(CogED_sum, aes(x=task, y=meanSV)) +
   theme(plot.title = element_text(hjust = 0.5), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_line(colour = "black")) +
   geom_bar(stat="identity", position=position_dodge()) +
   geom_errorbar(position=position_dodge(width=0.9), aes(ymin=meanSV-ci, ymax=meanSV+ci), width=.2) +  
-   geom_point(data = d.coged, aes(x=task, y=meanSV),
-             stat="identity", position=position_jitter(w=.3), alpha=0.5) +
+     geom_point(data = d.coged, aes(x=task, y=meanSV, group=subID),
+             stat="identity", alpha=0.5) +
+  geom_line(data = d.coged, aes(x=task, y=meanSV, group=subID, colour = factor(subID))) +
   coord_cartesian(ylim=c(0,1)) +
   xlab("Task") + ylab("Subjective Value") + ggtitle("Cognitive Effort Discounting")
-p.1
+p.CogED <- p.1 + guides(colour=FALSE) 
+p.CogED
+ggsave(plot = p.1, filename = "OA_CogED.pdf", width = 9)
 ```
 
 ##Self-Report Questionnaires 
@@ -166,27 +169,18 @@ activities.string <- paste(EMA.clean$activities, collapse = "," )
 activity.vector <- str_split(activities.string, ',')[[1]]
 activity.clean <- data_frame(activity.vector)
 activity_freq <- activity.clean %>% group_by(activity.vector) %>% tally() %>% filter(activity.vector !="") %>%
-  rename(activity = activity.vector)
-activity_freq$activity <- factor(activity_freq$activity, levels=c(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,18,19,20), labels=c("Eating or Drinking", "TV", "Entertainment Away from Home", "Socializing", "Exercising", "Work", "Sleeping", "Running an Errand", "Cleaning", "Cooking", "Doctor's Appointment", "In Transit", "Nothing in Particular", "Computer", "Radio", "Reading", "Volunteering", "Hygeine", "Chores"))
+  rename(activity = activity.vector) %>%
+  mutate(percentage = (n / sum(n))*100)
+activity_freq$activity <- factor(activity_freq$activity, levels=c(2,1,14,16,12,4,7,20,19,15,10,8,6,5,13,9,3,18,11), labels=c("TV", "Eating or Drinking", "Computer", "Reading", "In Transit", "Socializing", "Sleeping", "Chores", "Hygiene", "Radio", "Cooking", "Errands", "Work", "Exercise", "Nothing in Particular", "Cleaning", "Entertainment", "Volunteering", "Doctor's Appointment"))
 
 kable(activity_freq, caption =  "Frequency of Current Activities")
 
-current.activities <- ggplot(activity_freq, aes(x = "" , y= n, fill=activity)) +
- geom_bar(width = 1, stat = "identity") + ggtitle("Current Activities")
-
-blank_theme <- theme_minimal()+
-  theme(
-  axis.title.x = element_blank(),
-  axis.title.y = element_blank(),
-  panel.border = element_blank(),
-  panel.grid=element_blank(),
-  axis.ticks = element_blank(),
-  plot.title=element_text(size=14, face="bold")
-  )
-
-pie_current <- current.activities + coord_polar("y", start=0) + blank_theme +
-   theme(axis.text.x=element_blank()) 
-pie_current
+p.activities <- ggplot(activity_freq, aes(x = activity, y= percentage)) +
+ theme(plot.title = element_text(hjust = 0.5), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_line(colour = "black"), axis.text.x = element_text(angle = 45, hjust = 1)) +
+  geom_bar(stat="identity", position=position_dodge()) +
+  xlab("Activity") + ylab("Percentage of Time Spent in  Activity")
+p.activities
+ggsave(plot = p.activities, filename = "current_activities.pdf", width = 11)
 ```
 
 ##Mental Demand of Current Activities
@@ -209,12 +203,22 @@ m.demand.sum <- summarySEwithin2(m.demand.subj, measurevar = "mean.demand", with
 p.mental.demand <- ggplot(m.demand.sum, aes(x = Category, y= mean.demand)) +
  theme(plot.title = element_text(hjust = 0.5), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_line(colour = "black"), axis.text.x = element_text(angle = 45, hjust = 1)) +
   geom_bar(stat="identity", position=position_dodge()) +
-  geom_errorbar(position=position_dodge(width=0.9), aes(ymin=mean.demand-ci, ymax=mean.demand+ci), width=.2) +
+  geom_errorbar(position=position_dodge(width=0.9), aes(ymin=mean.demand-se, ymax=mean.demand+se), width=.2) +
   coord_cartesian(ylim=c(1,3.5)) +
   xlab("Activity") + ylab("Mental Demand")
 p.mental.demand
+ggsave(plot = p.mental.demand.freq, filename = "m.demand.pdf", width = 11)
+#plotting mental demand as a frequency of reported daily life activities
+m.demand.sum$Category <- factor(m.demand.sum$Category, levels = c("volunteer", "work", "doctor", "transit", "social", "exercise", "entertain", "computer", "cooking", "cleaning", "reading", "errand", "radio", "hygeine", "chores", "tv", "nothing", "sleep", "eat"), labels = c("Volunteering", "Work", "Doctor's Appt.", "In Transit",  "Socializing", "Exercising", "Entertainment", "Computer", "Cooking", "Cleaning", "Reading", "Errands", "Radio", "Hygiene", "Chores", "TV", "Nothing in Particular", "Sleeping", "Eating/Drinking"))
 
-#tabulating frequency of mental demand ratings (from 5-point liket scale)
+p.mental.demand.freq <- ggplot(m.demand.sum, aes(x = Category, y= mean.demand)) +
+ theme(plot.title = element_text(hjust = 0.5), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_line(colour = "black"), axis.text.x = element_text(angle = 45, hjust = 1)) +
+  geom_bar(stat="identity", position=position_dodge()) +
+  geom_errorbar(position=position_dodge(width=0.9), aes(ymin=mean.demand-se, ymax=mean.demand+se), width=.2) +
+  coord_cartesian(ylim=c(1,3.3)) +
+  xlab("Activity") + ylab("Mental Demand")
+p.mental.demand.freq
+#tabulating frequency of mental demand ratings (from 5-point likert scale)
 m.demand$rating <- factor(m.demand$rating, levels=c(1,2,3,4,5), labels = c("Not at All","A Little Bit","Moderately", "Quite a Bit", "Extremely"))  
 m.demand.freq <- m.demand %>% group_by(rating) %>% tally() %>% filter(rating != "NA")
 
@@ -225,6 +229,7 @@ m.demand.frequency <- ggplot(m.demand.freq, aes(x = rating, y= n)) +
  theme(plot.title = element_text(hjust = 0.5), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_line(colour = "black")) + scale_x_discrete(limits=c("Not at All","A Little Bit","Moderately", "Quite a Bit", "Extremely")) +
   geom_bar(stat="identity", position=position_dodge()) + ggtitle("Mental Demand of Activities") + xlab("Mental Demand") + ylab("Frequency")
 m.demand.frequency
+ggsave(plot = m.demand.frequency, filename = "m.demand.freq.pdf")
 ```
 
 ##Social Engagement -- Social Partners
